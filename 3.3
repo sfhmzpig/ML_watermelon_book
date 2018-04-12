@@ -1,0 +1,173 @@
+# # -*- coding: utf-8 -*-
+#
+# import jieba
+#
+# with open("text1",'r') as t1:
+#     t1_cont = t1.read()
+#     #two_cont = t1_cont.decode('GBK')
+#     cont_cut = jieba.cut(t1_cont)
+#     res = ' '.join(cont_cut)
+#     #res = res.encode('utf-8')
+#     with open("result1",'w') as tx2:
+#         tx2.write(res)
+# t1.close()
+# tx2.close()
+#
+# jieba.suggest_freq("李达康",True)
+# jieba.suggest_freq("沙瑞金",True)
+# jieba.suggest_freq("易学习",True)
+# jieba.suggest_freq("京州",True)
+# jieba.suggest_freq("王大路",True)
+# jieba.suggest_freq("欧阳菁",True)
+#
+#
+# with open("text2",'r') as f:
+#     t2_cont = f.read()
+#     t2_cut = jieba.cut(t2_cont)
+#     res2 = ' '.join(t2_cut)
+#     with open("result2",'w') as f2:
+#         f2.write(res2)
+# f.close()
+# f2.close()
+#
+# stp_wrd_path = "/Users/mba/sf/nature_lang/stop_words.txt"
+# stp_wrd_file = open(stp_wrd_path,'rb')
+# stp_wrd_content = stp_wrd_file.read()
+# stp_wrd_list = stp_wrd_content.splitlines()
+# stp_wrd_file.close()
+#
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# with open("result1") as f1:
+#     res1 = f1.read()
+# with open("result2") as f2:
+#     res2 = f2.read()
+#
+# corpus = [res1,res2]
+# vector = TfidfVectorizer(stop_words=stp_wrd_list)
+# tfDif = vector.fit_transform(corpus)
+# print(tfDif)
+#
+# wordList = vector.get_feature_names()
+# weightList = tfDif.toarray()
+# for i in range(len(weightList)):
+#     print("第",i,"段文本的TF－DIF为：－－－－－－－－－－－－－－－－－－－－－－－",)
+#     for j in range(len(weightList[i])):
+#         print(wordList[j],weightList[i][j])
+# from enchant.checker import SpellChecker
+# chrk = SpellChecker("en_US")
+# chrk.set_text("Many peopll likee to watch TVSb")
+# for i in chrk:
+#     print("Error in:",i.word)
+import numpy as np
+import math
+
+def calH(x,y,beta):
+    #print("x:",x,"y:",y,"beta:",beta)
+    return -y * np.dot(beta,x.T) + np.log(1 + np.exp(np.dot(beta,x.T)))
+
+def calHSum(X,Y,beta):
+    m,n = np.shape(X)
+    sum = 0
+    for i in range(m):
+        sum += calH(X[i],Y[i],beta)
+    return sum
+
+def gradMin(X,Y):
+    maxIte = 3500
+    h = 0.1
+    m,n = np.shape(X)
+    xTmp = np.ones([m,1])
+    X = np.hstack((X,xTmp))
+    m,n = np.shape(X)
+    beta = np.zeros(n)
+    delta_beta = np.ones(n) * h
+    betaTmp = np.zeros(n)
+    llh = 0
+    llhTmp = 0
+    for i in range(maxIte):
+        betaTmp = np.array(beta)
+        #print(betaTmp)
+        for j in range(n):
+            #print(beta[j])
+            beta[j] += delta_beta[j]
+            #print(beta)
+            llhTmp = calHSum(X,Y,beta)
+            delta_beta[j] =  - h * ((llhTmp - llh) / delta_beta[j])
+            #print(betaTmp)
+            beta[j] = betaTmp[j]
+
+        beta += delta_beta
+        llh = calHSum(X,Y,beta)
+
+    print(beta)
+    return beta
+
+def gradDscent_1(X, y):  #implementation of basic gradDscent algorithms
+    m,n = np.shape(X)
+    xTmp = np.ones([m,1])
+    X = np.hstack((X,xTmp))
+    m,n = np.shape(X)
+    h = 0.1  # step length of iteration
+    max_times= 500  # give the iterative times limit
+    m, n = np.shape(X)
+
+    beta = np.zeros(n)  # parameter and initial to 0
+    delta_beta = np.ones(n)*h  # delta parameter and initial to h
+    llh = 0
+    llh_temp = 0
+
+    for i in range(max_times):
+        beta_temp = beta
+
+        # for partial derivative
+        for j in range(n):
+            beta[j] += delta_beta[j]
+            print(beta)
+            llh_tmp = calHSum(X, y, beta)
+            delta_beta[j] = -h * (llh_tmp - llh) / delta_beta[j]
+            beta[j] = beta_temp[j]
+
+        beta += delta_beta
+        llh = calHSum(X, y, beta)
+
+    print(beta)
+    return beta
+
+def discrimination():
+    X,Y = readData()
+    beta = gradMin(X,Y)
+
+    X,Y = testData()
+    m,n = np.shape(X)
+    tNum = 0
+    for i in range(m):
+
+        res = 1- 1 / (1 + np.exp(np.dot(X[i],(beta[0:2]).T)+beta[2]))
+        print(res)
+        if (res >= 0.5):
+            res_0 = 1
+        else:
+            res_0 = 0
+        if (res_0 == Y[i]):
+            tNum += 1
+    num = np.shape(X)[0]
+
+    print(tNum/num)
+    return tNum/num
+
+def readData():
+    w1 = np.loadtxt("waterMelon.csv")
+    X = w1[:,1:3]
+    Y = w1[:,3]
+    return X,Y
+
+def testData():
+    w1 = np.loadtxt("waterMelon.csv")
+    X = w1[:, 1:3]
+    Y = w1[:, 3]
+    #    print(X)
+    return X, Y
+
+if "__main__" == __name__:
+    X,Y = readData()
+    discrimination()
